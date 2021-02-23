@@ -3,23 +3,6 @@ import json
 from pathlib import Path
 import requests
 
-params = {
-    "records_per_page": 50,
-    "page": 1,
-}
-
-url = "https://5ka.ru/api/v2/special_offers/"
-headers = {
-    "Accept": "application/json",
-    "User-Agent": "Mozilla / 5.0(Windows NT 10.0; Win64; x64;rv: 85.0) Gecko / 20100101 Firefox / 85.0",
-}
-
-response = requests.get(url, params=params, headers=headers)
-
-html_temp = Path(__file__).parent.joinpath("temp.html")
-json_temp = Path(__file__).parent.joinpath("temp.json")
-json_temp.write_text(response.text, encoding="utf-8")
-
 
 class Parse5ka:
     headers = {
@@ -56,11 +39,40 @@ class Parse5ka:
         file_path.write_text(json.dumps(data, ensure_ascii=False), encoding='utf-8')
 
 
+class CategoriesParser(Parse5ka):
+    def __init__(self, categories_url: str, *args, **kwargs):
+        self.categories_url = categories_url
+        super().__init__(*args, **kwargs)
+
+
+def _get_categories(self) -> list:
+    response = self._get_response(self.categories_url)
+    data = response.json
+    return data
+
+
+def run(self):
+    for category in self._get_categories():
+        category["products"] = []
+        url = f"{self.start_url}?categories={category['parent_group_code']}"
+        file_path = self.products_path.joinpath(f"{category['parent_group_code']}.json")
+        category["products"].extend(list(self._parse(url)))
+        self._save(category, file_path)
+
+
+def get_dir_path(dirname: str) -> Path:
+    dir_path = Path(__file__).parent.joinpath(dirname)
+    if not dir_path.exists():
+        dir_path.mkdir()
+    return dir_path
+
+
 if __name__ == '__main__':
     url = "https://5ka.ru/api/v2/special_offers/"
-    save_path = Path(__file__).parent.joinpath('products')
-    if not save_path.exists():
-        save_path.mkdir()
+    product_path = get_dir_path('products')
+    cat_path = get_dir_path('categories')
+    cat_url = "https://5ka.ru/api/v2/categories/"
+    parser = Parse5ka(url, product_path)
+    cat_parser = CategoriesParser(cat_url, url, cat_path)
 
-    parser = Parse5ka(url, save_path)
-    parser.run()
+
